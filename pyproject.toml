@@ -1,0 +1,43 @@
+[project]
+name = "cli"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Henrique Sebastião",email = "contato@henriquesebastiao.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+    "typer (>=0.15.2,<0.16.0)",
+    "websockets (>=15.0.1,<16.0.0)",
+    "python-decouple (>=3.8,<4.0)"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.11.2"
+taskipy = "^1.14.1"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+preview = true
+select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'
+
+[tool.ruff.lint.per-file-ignores]
+"main.py" = ['PLW0603']
+
+[tool.poetry.scripts]
+confy = 'cli.main:app'
+
+[tool.taskipy.tasks]
+lint = 'ruff check .; ruff check . --diff'
+format = 'ruff format .; ruff check . --fix'

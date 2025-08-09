@@ -7,7 +7,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
     DEBUG: bool = False
-    SERVER_HOST: str = 'localhost:8000'
 
 
 @lru_cache

@@ -22,7 +22,6 @@ from cli.utils import debug, keep
 app = typer.Typer()
 running = True
 settings = get_settings()
-host_address = settings.SERVER_HOST
 
 private_key, public_key = generate_rsa_keypair()
 peer_public_key = None
@@ -265,8 +264,6 @@ def start(user_id: str, recipient_id: str):
         user_id (str): ID do usuário cliente.
         recipient_id (str): ID do destinatário para se comunicar.
     """
-    global host_address
-    if not host_address:
-        host_address = str(typer.prompt('Endereço do servidor')).strip()
+    host_address = str(typer.prompt('Endereço do servidor')).strip()
 
     asyncio.run(client(host_address, user_id, recipient_id))

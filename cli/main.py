@@ -106,6 +106,9 @@ async def receive_messages(websocket):
 
                         await websocket.send(f'{AES_KEY_PREFIX}{b64_encrypted_key}')
 
+                        debug(f'encrypted AES key: {b64_encrypted_key}')
+                        debug(f'plain-text AES key: {aes_key}')
+
                         peer_aes_key = aes_key
                         debug('Chave AES gerada e enviada ao peer.')
                     except Exception as e:

@@ -214,43 +214,50 @@ async def client(host: str, user_id: str, recipient_id: str):
     my_id = user_id
     peer_id = recipient_id
 
-    async with websockets.connect(uri) as websocket:
-        try:
-            # Tarefas para enviar e receber mensagens
-            send_task = asyncio.create_task(send_messages(websocket))
-            receive_task = asyncio.create_task(receive_messages(websocket))
-
-            # Monitora a variável "running" para encerrar as tarefas quando necessário
-            async def monitor_running():
-                while True:
-                    if not running:
-                        receive_task.cancel()
-                        send_task.cancel()
-                        break
-                    await asyncio.sleep(0.5)
-
-            monitor_task = asyncio.create_task(monitor_running())
-
+    try:
+        async with websockets.connect(uri) as websocket:
             try:
-                # Aguarda até que todas as tarefas terminem
-                await asyncio.gather(receive_task, send_task, monitor_task)
+                # Tarefas para enviar e receber mensagens
+                send_task = asyncio.create_task(send_messages(websocket))
+                receive_task = asyncio.create_task(receive_messages(websocket))
+
+                # Monitora a variável "running" para encerrar as tarefas quando necessário
+                async def monitor_running():
+                    while True:
+                        if not running:
+                            receive_task.cancel()
+                            send_task.cancel()
+                            break
+                        await asyncio.sleep(0.5)
+
+                monitor_task = asyncio.create_task(monitor_running())
+
+                try:
+                    # Aguarda até que todas as tarefas terminem
+                    await asyncio.gather(receive_task, send_task, monitor_task)
+                except asyncio.CancelledError:
+                    pass
+                finally:
+                    # Cancela tarefas que não terminaram
+                    await asyncio.gather(
+                        *[
+                            task
+                            for task in [receive_task, send_task, monitor_task]
+                            if not task.done()
+                        ],
+                        return_exceptions=True,
+                    )
+            except websockets.ConnectionClosedOK:
+                print('Conexão fechada pelo servidor.')
+            except websockets.ConnectionClosedError:
+                print('Conexão fechada abruptamente.')
             except asyncio.CancelledError:
-                pass
-            finally:
-                # Cancela tarefas que não terminaram
-                await asyncio.gather(
-                    *[task for task in [receive_task, send_task, monitor_task] if not task.done()],
-                    return_exceptions=True,
-                )
-        except websockets.ConnectionClosedOK:
-            print('Conexão fechada pelo servidor.')
-        except websockets.ConnectionClosedError:
-            print('Conexão fechada abruptamente.')
-        except asyncio.CancelledError:
-            print('Tudo cancelado')
-            typer.Exit(1)
-        except Exception as e:
-            print(f'Erro ao receber mensagens: {e}')
+                print('Tudo cancelado')
+                typer.Exit(1)
+            except Exception as e:
+                print(f'Erro ao receber mensagens: {e}')
+    except Exception:
+        print('Erro ao conectar ao servidor, verifique o endereço fornecido.')
 
 
 @app.command()

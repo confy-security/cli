@@ -1,5 +1,5 @@
 <h1 align="center">
-  <a href="https://github.com/confy-security/server" target="_blank" rel="noopener noreferrer">
+  <a href="https://github.com/confy-security/cli" target="_blank" rel="noopener noreferrer">
     <picture>
       <img width="80" src="https://github.com/confy-security/assets/blob/main/img/confy-app-icon.png?raw=true">
     </picture>

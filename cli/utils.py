@@ -13,3 +13,13 @@ def debug(text: str):
     if settings.DEBUG:
         print(f'[bold blue]DEBUG: {text}[/bold blue]')
         keep()
+
+
+def get_protocol(url: str) -> tuple[str]:
+    hostname = url.split('://')
+    protocol = 'ws'
+
+    if hostname[0] == 'https':
+        protocol = 'wss'
+
+    return protocol, hostname[1]

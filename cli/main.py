@@ -17,7 +17,7 @@ from confy_addons.prefixes import AES_KEY_PREFIX, AES_PREFIX, KEY_EXCHANGE_PREFI
 from rich import print
 
 from cli.settings import get_settings
-from cli.utils import debug, keep
+from cli.utils import debug, get_protocol, keep
 
 app = typer.Typer()
 running = True
@@ -196,7 +196,7 @@ async def send_messages(websocket):
             break
 
 
-async def client(host: str, user_id: str, recipient_id: str):
+async def client(server_address: str, user_id: str, recipient_id: str):
     """Inicia a conexão WebSocket e gerencia o envio e recebimento de mensagens.
 
     Cria e gerencia tarefas assíncronas para envio,
@@ -207,7 +207,8 @@ async def client(host: str, user_id: str, recipient_id: str):
         user_id (str): ID do usuário cliente.
         recipient_id (str): ID do destinatário com quem será feita a comunicação.
     """
-    uri = f'ws://{host}/ws/{user_id}@{recipient_id}'
+    protocol, host = get_protocol(server_address)
+    uri = f'{protocol}://{host}/ws/{user_id}@{recipient_id}'
 
     global my_id, peer_id
 

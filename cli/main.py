@@ -1,6 +1,8 @@
 import asyncio
 import base64
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+from pathlib import Path
 
 import typer
 import websockets
@@ -15,6 +17,10 @@ from confy_addons.encryption import (
     serialize_public_key,
 )
 from confy_addons.prefixes import AES_KEY_PREFIX, AES_PREFIX, KEY_EXCHANGE_PREFIX, SYSTEM_PREFIX
+from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.history import FileHistory
 from rich import print
 
 from cli.settings import get_settings
@@ -36,6 +42,25 @@ peer_id = None
 executor = ThreadPoolExecutor(max_workers=1)
 
 
+# Configurações do prompt de endereço do servidor
+# Caminho do arquivo de histórico de endereço do servidor
+history_path = Path('~/.confy_address_history').expanduser()
+
+# Garantir que o diretório exista
+history_path.parent.mkdir(parents=True, exist_ok=True)
+
+# Garantir que o arquivo exista
+if not history_path.exists():
+    history_path.touch()
+
+prompt_address_session = PromptSession(history=FileHistory(str(history_path)))
+server_address_completer = WordCompleter(['http://', 'https://'])
+
+# Configurações do prompt de mensagem
+prompt_message_session = PromptSession()
+message_completer = WordCompleter(['exit'])
+
+
 async def read_input(prompt: str) -> str:
     """
     Lê a entrada do usuário no terminal de forma assíncrona.
@@ -51,7 +76,15 @@ async def read_input(prompt: str) -> str:
         str: Texto digitado pelo usuário.
     """
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(executor, input, prompt)
+    return await loop.run_in_executor(
+        executor,
+        partial(
+            prompt_message_session.prompt,
+            prompt,
+            completer=message_completer,
+            auto_suggest=AutoSuggestFromHistory(),
+        ),
+    )
 
 
 async def receive_messages(websocket):
@@ -113,10 +146,8 @@ async def receive_messages(websocket):
 
                         # Não enviamos a mensagem do usuário agora — garantimos handshake primeiro.
                         print(f'[bold yellow]{message}[/bold yellow]')
-                        keep()
                         continue
                 print(f'[bold yellow]{message}[/bold yellow]')
-                keep()
                 continue
 
             # Recebe chave pública do peer
@@ -348,6 +379,11 @@ def start(user_id: str, recipient_id: str):
     Raises:
         Exception: Propaga erros de conexão ou execução ocorridos no cliente.
     """
-    host_address = str(typer.prompt('Endereço do servidor')).strip()
-
+    host_address = str(
+        prompt_address_session.prompt(
+            'Endereço do servidor: ',
+            completer=server_address_completer,
+            auto_suggest=AutoSuggestFromHistory(),
+        )
+    ).strip()
     asyncio.run(client(host_address, user_id, recipient_id))

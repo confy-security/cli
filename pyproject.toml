@@ -12,6 +12,7 @@ dependencies = [
     "websockets (>=15.0.1,<16.0.0)",
     "pydantic-settings (>=2.10.1,<3.0.0)",
     "confy-addons (>=0.1.3,<0.2.0)",
+    "prompt-toolkit (>=3.0.51,<4.0.0)",
 ]
 
 [build-system]

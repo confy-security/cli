@@ -30,14 +30,19 @@ line-length = 99
 
 [tool.ruff.lint]
 preview = true
-select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+select = ['I', 'F', 'E', 'W', 'PL', 'PT', 'D']
 
 [tool.ruff.format]
 preview = true
 quote-style = 'single'
 
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 [tool.ruff.lint.per-file-ignores]
-"main.py" = ['PLW0603', 'PLR0915', 'PLR0912']
+"main.py" = ['PLW0603', 'PLR0915', 'PLR0912', 'D100']
+"settings.py" = ['D103', 'D100', 'D101']
+"__init__.py" = ['D104']
 
 [tool.poetry.scripts]
 confy = 'cli.main:app'

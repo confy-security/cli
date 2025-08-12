@@ -24,7 +24,7 @@ from prompt_toolkit.history import FileHistory
 from rich import print
 
 from cli.settings import get_settings
-from cli.utils import debug, get_protocol, keep
+from cli.utils import alert, debug, get_protocol, is_prefix, received, received_plaintext
 
 app = typer.Typer()
 running = True
@@ -39,6 +39,10 @@ public_sent = False
 my_id = None
 peer_id = None
 
+# Executor de threads para rodar tarefas bloqueantes
+# Usado para rodar prompts de entrada do usuário (prompt_toolkit) em paralelo
+# ao loop assíncrono, evitando travar a comunicação WebSocket.
+# max_workers=1 garante que apenas um prompt rode por vez.
 executor = ThreadPoolExecutor(max_workers=1)
 
 
@@ -62,8 +66,7 @@ message_completer = WordCompleter(['exit'])
 
 
 async def read_input(prompt: str) -> str:
-    """
-    Lê a entrada do usuário no terminal de forma assíncrona.
+    """Lê a entrada do usuário no terminal de forma assíncrona.
 
     Essa função executa a chamada bloqueante `input()` em um executor
     de threads para evitar travar o loop de eventos, permitindo que
@@ -74,6 +77,7 @@ async def read_input(prompt: str) -> str:
 
     Returns:
         str: Texto digitado pelo usuário.
+
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
@@ -88,8 +92,7 @@ async def read_input(prompt: str) -> str:
 
 
 async def receive_messages(websocket):
-    """
-    Gerencia o recebimento e processamento de mensagens via WebSocket.
+    """Gerencia o recebimento e processamento de mensagens via WebSocket.
 
     Esta função é responsável por:
     - Ler mensagens recebidas do servidor ou do peer.
@@ -117,6 +120,7 @@ async def receive_messages(websocket):
     Raises:
         Exception: Para erros inesperados durante o processamento
         ou descriptografia das mensagens.
+
     """
     global running, peer_public_key, peer_aes_key, public_sent
     try:
@@ -124,16 +128,17 @@ async def receive_messages(websocket):
             try:
                 message = await websocket.recv()
             except websockets.ConnectionClosed:
-                print(
-                    '[bold yellow]Conexão fechada pelo servidor '
-                    'ou pelo destinatário.[/bold yellow]'
-                )
-                print('Pressione ENTER para sair.')
                 running = False
+                alert('Conexão fechada pelo servidor ou pelo destinatário.')
+                try:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    prompt_message_session.app.exit()  # encerra o prompt imediatamente
+                except Exception:
+                    pass
                 break
 
             # Mensagens do servidor (não criptografadas)
-            if isinstance(message, str) and message.startswith(SYSTEM_PREFIX):
+            if is_prefix(message, SYSTEM_PREFIX):
                 if message == f'{SYSTEM_PREFIX} O usuário destinatário agora está conectado.':
                     # Envia a chave pública automaticamente apenas uma vez
                     if not public_sent:
@@ -145,13 +150,13 @@ async def receive_messages(websocket):
                         debug('Enviou a chave pública para o peer.')
 
                         # Não enviamos a mensagem do usuário agora — garantimos handshake primeiro.
-                        print(f'[bold yellow]{message}[/bold yellow]')
+                        alert(message)
                         continue
-                print(f'[bold yellow]{message}[/bold yellow]')
+                alert(message)
                 continue
 
             # Recebe chave pública do peer
-            elif isinstance(message, str) and message.startswith(KEY_EXCHANGE_PREFIX):
+            elif is_prefix(message, KEY_EXCHANGE_PREFIX):
                 debug(message)
                 b64_key = message[len(KEY_EXCHANGE_PREFIX) :]
                 try:
@@ -182,7 +187,7 @@ async def receive_messages(websocket):
                         debug('Chave AES gerada e enviada.')
 
             # Recebe chave AES cifrada (o outro lado foi o gerador)
-            elif isinstance(message, str) and message.startswith(AES_KEY_PREFIX):
+            elif is_prefix(message, AES_KEY_PREFIX):
                 b64_enc = message[len(AES_KEY_PREFIX) :]
                 try:
                     encrypted_key = base64.b64decode(b64_enc)
@@ -194,7 +199,7 @@ async def receive_messages(websocket):
                 continue
 
             # Mensagem criptografada com AES (nosso prefixo AES_PREFIX)
-            elif isinstance(message, str) and message.startswith(AES_PREFIX):
+            elif is_prefix(message, AES_PREFIX):
                 if peer_aes_key is None:
                     print(
                         '[WARN] Mensagem criptografada recebida, '
@@ -207,26 +212,21 @@ async def receive_messages(websocket):
                     decrypted = aes_decrypt(peer_aes_key, b64_payload)
                     # opcional: mostrar payload para debug
                     debug(f'payload (b64) -> {b64_payload}')
-
-                    print(f'[bold green]RECEIVED:[/bold green] {decrypted}')
-                    keep()
+                    received(decrypted)
                 except Exception as e:
                     # Descriptografia falhou -> mostra aviso e payload bruto para debug
                     print(f'[ERROR] Falha ao descriptografar a mensagem: {e}')
                 continue
             else:
                 # Fallback: mensagem em plaintext (sem prefixo conhecido)
-                print(f'[bold green]RECEIVED (plaintext):[/bold green] {message}')
-                keep()
-
+                received_plaintext(message)
     except Exception as e:
         print(f'\nErro ao receber mensagem: {e}')
         running = False
 
 
 async def send_messages(websocket):
-    """
-    Gerencia o envio de mensagens pelo WebSocket.
+    """Gerencia o envio de mensagens pelo WebSocket.
 
     Esta função lê mensagens digitadas no terminal pelo usuário e as envia
     para o peer conectado via WebSocket. Caso uma chave AES já tenha sido
@@ -248,6 +248,7 @@ async def send_messages(websocket):
 
     Observação:
         O estado global `running` é usado para controlar o loop de envio.
+
     """
     global running
     while running:
@@ -280,8 +281,7 @@ async def send_messages(websocket):
 
 
 async def client(server_address: str, user_id: str, recipient_id: str):
-    """
-    Estabelece uma conexão WebSocket com o servidor e gerencia a comunicação entre dois usuários.
+    """Abre uma conexão WebSocket com o servidor e gerencia a comunicação entre dois usuários.
 
     A função cria e mantém três tarefas assíncronas:
       - Envio de mensagens para o servidor.
@@ -302,6 +302,7 @@ async def client(server_address: str, user_id: str, recipient_id: str):
     Side Effects:
         - Atualiza as variáveis globais `my_id` e `peer_id`.
         - Exibe mensagens no terminal sobre o status da conexão.
+
     """
     protocol, host = get_protocol(server_address)
     uri = f'{protocol}://{host}/ws/{user_id}@{recipient_id}'
@@ -359,8 +360,7 @@ async def client(server_address: str, user_id: str, recipient_id: str):
 
 @app.command()
 def start(user_id: str, recipient_id: str):
-    """
-    Comando da CLI para iniciar o cliente de mensagens.
+    """Comando da CLI para iniciar o cliente de mensagens.
 
     Ao ser executado, solicita (se necessário) o endereço do servidor e
     inicia a conexão WebSocket com o servidor, permitindo a troca de mensagens
@@ -378,6 +378,7 @@ def start(user_id: str, recipient_id: str):
 
     Raises:
         Exception: Propaga erros de conexão ou execução ocorridos no cliente.
+
     """
     host_address = str(
         prompt_address_session.prompt(

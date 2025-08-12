@@ -1,5 +1,6 @@
 import asyncio
 import base64
+from concurrent.futures import ThreadPoolExecutor
 
 import typer
 import websockets
@@ -31,6 +32,13 @@ public_sent = False
 # ids (atribua em client(): my_id = user_id; peer_id = recipient_id)
 my_id = None
 peer_id = None
+
+executor = ThreadPoolExecutor(max_workers=1)
+
+
+async def read_input(prompt):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(executor, input, prompt)
 
 
 async def receive_messages(websocket):
@@ -78,6 +86,7 @@ async def receive_messages(websocket):
 
             # Recebe chave pública do peer
             elif isinstance(message, str) and message.startswith(KEY_EXCHANGE_PREFIX):
+                debug(message)
                 b64_key = message[len(KEY_EXCHANGE_PREFIX) :]
                 try:
                     peer_public_key = deserialize_public_key(b64_key)
@@ -86,33 +95,26 @@ async def receive_messages(websocket):
                     print(f'[ERROR] Chave pública de peer inválida: {e}')
                     continue
 
-                # Determinar quem deve gerar a AES (regra determinística)
-                # Apenas um dos lados deve gerar e enviar a chave AES.
-                # Exemplo: o lado com my_id > peer_id gera a chave.
-                should_generate = False
-                if peer_aes_key is None:
-                    if my_id is None or peer_id is None:
-                        # fallback: gera se não souber ids (menos ideal)
-                        should_generate = True
-                    else:
-                        should_generate = str(my_id) > str(peer_id)
-
-                if should_generate:
+                # TODO: Verificar a adição desse trecho
+                if not public_sent:
                     try:
+                        pub_b64 = serialize_public_key(public_key)
+                        await websocket.send(f'{KEY_EXCHANGE_PREFIX}{pub_b64}')
+                        public_sent = True
+                        debug('Enviou a chave pública de volta para o peer.')
+                    except Exception as e:
+                        print(f'[ERROR] Falha ao enviar minha chave pública: {e}')
+                        continue
+
+                if peer_aes_key is None and public_sent:
+                    should_generate = str(my_id) > str(peer_id)
+                    if should_generate:
                         aes_key = generate_aes_key()
                         encrypted_key = rsa_encrypt(peer_public_key, aes_key)
                         b64_encrypted_key = base64.b64encode(encrypted_key).decode()
-
                         await websocket.send(f'{AES_KEY_PREFIX}{b64_encrypted_key}')
-
-                        debug(f'encrypted AES key: {b64_encrypted_key}')
-                        debug(f'plain-text AES key: {aes_key}')
-
                         peer_aes_key = aes_key
-                        debug('Chave AES gerada e enviada ao peer.')
-                    except Exception as e:
-                        print(f'[ERROR] Falha ao gerar/enviar chave AES: {e}')
-                continue
+                        debug('Chave AES gerada e enviada.')
 
             # Recebe chave AES cifrada (o outro lado foi o gerador)
             elif isinstance(message, str) and message.startswith(AES_KEY_PREFIX):
@@ -147,10 +149,10 @@ async def receive_messages(websocket):
                     # Descriptografia falhou -> mostra aviso e payload bruto para debug
                     print(f'[ERROR] Falha ao descriptografar a mensagem: {e}')
                 continue
-
-            # Fallback: mensagem em plaintext (sem prefixo conhecido)
-            print(f'[bold green]RECEIVED (plaintext):[/bold green] {message}')
-            keep()
+            else:
+                # Fallback: mensagem em plaintext (sem prefixo conhecido)
+                print(f'[bold green]RECEIVED (plaintext):[/bold green] {message}')
+                keep()
 
     except Exception as e:
         print(f'\nErro ao receber mensagem: {e}')
@@ -169,7 +171,7 @@ async def send_messages(websocket):
     global running
     while running:
         try:
-            message = await asyncio.to_thread(input, '> ')
+            message = await read_input('> ')
 
             if message.lower() == 'exit':
                 running = False
@@ -229,7 +231,7 @@ async def client(server_address: str, user_id: str, recipient_id: str):
                             receive_task.cancel()
                             send_task.cancel()
                             break
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(0.5)  # NÃO EXCLUA ESSA LINHA. Ass.: @henriquesebastiao
 
                 monitor_task = asyncio.create_task(monitor_running())
 

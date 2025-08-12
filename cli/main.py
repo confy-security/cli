@@ -36,19 +36,54 @@ peer_id = None
 executor = ThreadPoolExecutor(max_workers=1)
 
 
-async def read_input(prompt):
+async def read_input(prompt: str) -> str:
+    """
+    Lê a entrada do usuário no terminal de forma assíncrona.
+
+    Essa função executa a chamada bloqueante `input()` em um executor
+    de threads para evitar travar o loop de eventos, permitindo que
+    outras tarefas assíncronas continuem rodando enquanto o usuário digita.
+
+    Args:
+        prompt (str): Texto exibido como solicitação no terminal.
+
+    Returns:
+        str: Texto digitado pelo usuário.
+    """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(executor, input, prompt)
 
 
 async def receive_messages(websocket):
-    """Lida com o recebimento de mensagens via WebSocket.
+    """
+    Gerencia o recebimento e processamento de mensagens via WebSocket.
 
-    Imprime as mensagens recebidas no terminal.
-    Caso o outro usuário se desconecte, encerra a execução do cliente.
+    Esta função é responsável por:
+    - Ler mensagens recebidas do servidor ou do peer.
+    - Processar mensagens de controle do sistema (prefixo SYSTEM_PREFIX).
+    - Executar o handshake inicial de troca de chaves públicas RSA
+      (prefixo KEY_EXCHANGE_PREFIX).
+    - Receber e descriptografar chaves AES enviadas pelo peer
+      (prefixo AES_KEY_PREFIX).
+    - Receber, descriptografar e exibir mensagens criptografadas com AES
+      (prefixo AES_PREFIX).
+    - Exibir mensagens em texto puro quando não possuem prefixo conhecido.
+
+    Caso a conexão seja encerrada pelo servidor ou pelo peer, a função
+    encerra o loop de execução e sinaliza o encerramento do cliente.
 
     Args:
-        websocket: Conexão WebSocket que deve ser monitorada.
+        websocket (websockets.WebSocketClientProtocol):
+            Conexão WebSocket ativa a ser monitorada para recebimento de mensagens.
+
+    Side Effects:
+        - Pode alterar variáveis globais relacionadas à sessão
+          (`peer_public_key`, `peer_aes_key`, `public_sent`, `running`).
+        - Pode enviar mensagens de volta ao peer como parte do handshake.
+
+    Raises:
+        Exception: Para erros inesperados durante o processamento
+        ou descriptografia das mensagens.
     """
     global running, peer_public_key, peer_aes_key, public_sent
     try:
@@ -95,7 +130,6 @@ async def receive_messages(websocket):
                     print(f'[ERROR] Chave pública de peer inválida: {e}')
                     continue
 
-                # TODO: Verificar a adição desse trecho
                 if not public_sent:
                     try:
                         pub_b64 = serialize_public_key(public_key)
@@ -160,13 +194,29 @@ async def receive_messages(websocket):
 
 
 async def send_messages(websocket):
-    """Lida com o envio de mensagens via WebSocket.
+    """
+    Gerencia o envio de mensagens pelo WebSocket.
 
-    Lê mensagens do usuário pelo terminal e as envia.
-    Digitar 'exit' encerra a sessão.
+    Esta função lê mensagens digitadas no terminal pelo usuário e as envia
+    para o peer conectado via WebSocket. Caso uma chave AES já tenha sido
+    estabelecida, a mensagem será criptografada com AES antes do envio.
+    Digitar "exit" encerra a sessão de envio.
+
+    Fluxo de execução:
+        1. Aguarda o input do usuário.
+        2. Se a mensagem for "exit", encerra o loop e finaliza a função.
+        3. Se existir `peer_aes_key`, criptografa a mensagem com AES e envia.
+        4. Caso contrário, exibe um aviso informando que a chave ainda não foi estabelecida.
 
     Args:
-        websocket: Conexão WebSocket ativa.
+        websocket: Objeto WebSocket conectado que será usado para enviar mensagens.
+
+    Exceptions:
+        Exception: Captura e exibe qualquer erro ocorrido durante o envio
+        ou criptografia da mensagem, encerrando o loop de execução.
+
+    Observação:
+        O estado global `running` é usado para controlar o loop de envio.
     """
     global running
     while running:
@@ -199,15 +249,28 @@ async def send_messages(websocket):
 
 
 async def client(server_address: str, user_id: str, recipient_id: str):
-    """Inicia a conexão WebSocket e gerencia o envio e recebimento de mensagens.
+    """
+    Estabelece uma conexão WebSocket com o servidor e gerencia a comunicação entre dois usuários.
 
-    Cria e gerencia tarefas assíncronas para envio,
-    recebimento e monitoramento da conexão.
+    A função cria e mantém três tarefas assíncronas:
+      - Envio de mensagens para o servidor.
+      - Recebimento de mensagens do servidor.
+      - Monitoramento do estado global `running` para encerrar a comunicação.
 
     Args:
-        host (str): Endereço do servidor WebSocket.
+        server_address (str): Endereço do servidor WebSocket (sem protocolo).
         user_id (str): ID do usuário cliente.
-        recipient_id (str): ID do destinatário com quem será feita a comunicação.
+        recipient_id (str): ID do destinatário para a comunicação.
+
+    Raises:
+        websockets.ConnectionClosedOK: Quando a conexão é encerrada normalmente pelo servidor.
+        websockets.ConnectionClosedError: Quando a conexão é encerrada de forma abrupta.
+        asyncio.CancelledError: Quando as tarefas são canceladas manualmente.
+        Exception: Para outros erros durante a conexão ou execução.
+
+    Side Effects:
+        - Atualiza as variáveis globais `my_id` e `peer_id`.
+        - Exibe mensagens no terminal sobre o status da conexão.
     """
     protocol, host = get_protocol(server_address)
     uri = f'{protocol}://{host}/ws/{user_id}@{recipient_id}'
@@ -265,14 +328,25 @@ async def client(server_address: str, user_id: str, recipient_id: str):
 
 @app.command()
 def start(user_id: str, recipient_id: str):
-    """Comando da CLI para iniciar o app.
+    """
+    Comando da CLI para iniciar o cliente de mensagens.
 
-    Se o endereço do servidor não estiver definido nas variáveis de ambiente,
-    será solicitado ao usuário.
+    Ao ser executado, solicita (se necessário) o endereço do servidor e
+    inicia a conexão WebSocket com o servidor, permitindo a troca de mensagens
+    entre o usuário e o destinatário especificado.
 
     Args:
-        user_id (str): ID do usuário cliente.
-        recipient_id (str): ID do destinatário para se comunicar.
+        user_id (str): ID único do usuário cliente.
+        recipient_id (str): ID único do destinatário para comunicação.
+
+    Behavior:
+        - Se a variável de ambiente `SERVER_HOST` não estiver definida,
+          o endereço será solicitado via prompt interativo.
+        - A função é executada de forma síncrona, mas inicia o cliente assíncrono
+          usando `asyncio.run()`.
+
+    Raises:
+        Exception: Propaga erros de conexão ou execução ocorridos no cliente.
     """
     host_address = str(typer.prompt('Endereço do servidor')).strip()
 

@@ -3,7 +3,8 @@ name = "cli"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Henrique Sebastião",email = "contato@henriquesebastiao.com"}
+    {name = "Henrique Sebastião", email = "contato@henriquesebastiao.com"},
+    {name = "Lucas Sousa", email = "lucasdedeus-15@hotmail.com"},
 ]
 readme = "README.md"
 requires-python = ">=3.13,<4.0"

@@ -9,6 +9,9 @@ authors:
     family-names: Silva Rosa
     email: contato@henriquesebastiao.com
     orcid: 'https://orcid.org/0009-0000-7393-6211'
+  - given-names: Lucas
+    family-names: Souza de Deus
+    email: lucasdedeus-15@hotmail.com
 identifiers:
 repository-code: 'https://github.com/confy-security/cli'
 url: 'https://github.com/confy-security'

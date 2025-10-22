@@ -6,16 +6,7 @@ from pathlib import Path
 
 import typer
 import websockets
-from confy_addons.encryption import (
-    aes_decrypt,
-    aes_encrypt,
-    deserialize_public_key,
-    generate_aes_key,
-    generate_rsa_keypair,
-    rsa_decrypt,
-    rsa_encrypt,
-    serialize_public_key,
-)
+from confy_addons import AESEncryption, RSAEncryption, RSAPublicEncryption, deserialize_public_key
 from confy_addons.prefixes import AES_KEY_PREFIX, AES_PREFIX, KEY_EXCHANGE_PREFIX, SYSTEM_PREFIX
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -30,7 +21,7 @@ app = typer.Typer()
 running = True
 settings = get_settings()
 
-private_key, public_key = generate_rsa_keypair()
+rsa = RSAEncryption()
 peer_public_key = None
 peer_aes_key = None
 public_sent = False
@@ -142,9 +133,7 @@ async def receive_messages(websocket):
                 if message == f'{SYSTEM_PREFIX} O usuário destinatário agora está conectado.':
                     # Envia a chave pública automaticamente apenas uma vez
                     if not public_sent:
-                        pub_b64 = serialize_public_key(public_key)
-
-                        await websocket.send(f'{KEY_EXCHANGE_PREFIX}{pub_b64}')
+                        await websocket.send(f'{KEY_EXCHANGE_PREFIX}{rsa.base64_public_key}')
 
                         public_sent = True
                         debug('Enviou a chave pública para o peer.')
@@ -168,8 +157,7 @@ async def receive_messages(websocket):
 
                 if not public_sent:
                     try:
-                        pub_b64 = serialize_public_key(public_key)
-                        await websocket.send(f'{KEY_EXCHANGE_PREFIX}{pub_b64}')
+                        await websocket.send(f'{KEY_EXCHANGE_PREFIX}{rsa.base64_public_key}')
                         public_sent = True
                         debug('Enviou a chave pública de volta para o peer.')
                     except Exception as e:
@@ -179,11 +167,11 @@ async def receive_messages(websocket):
                 if peer_aes_key is None and public_sent:
                     should_generate = str(my_id) > str(peer_id)
                     if should_generate:
-                        aes_key = generate_aes_key()
-                        encrypted_key = rsa_encrypt(peer_public_key, aes_key)
+                        aes = AESEncryption()
+                        encrypted_key = RSAPublicEncryption(peer_public_key).encrypt(aes.key)
                         b64_encrypted_key = base64.b64encode(encrypted_key).decode()
                         await websocket.send(f'{AES_KEY_PREFIX}{b64_encrypted_key}')
-                        peer_aes_key = aes_key
+                        peer_aes_key = aes.key
                         debug('Chave AES gerada e enviada.')
 
             # Recebe chave AES cifrada (o outro lado foi o gerador)
@@ -191,8 +179,8 @@ async def receive_messages(websocket):
                 b64_enc = message[len(AES_KEY_PREFIX) :]
                 try:
                     encrypted_key = base64.b64decode(b64_enc)
-                    aes_key = rsa_decrypt(private_key, encrypted_key)
-                    peer_aes_key = aes_key
+                    aes_key = rsa.decrypt(encrypted_key)
+                    peer_aes_key = AESEncryption(key=aes_key).key
                     debug('Chave AES recebida e descriptografada com sucesso.')
                 except Exception as e:
                     print(f'[ERROR] Falha ao descriptografar a chave AES: {e}')
@@ -209,7 +197,7 @@ async def receive_messages(websocket):
 
                 b64_payload = message[len(AES_PREFIX) :]
                 try:
-                    decrypted = aes_decrypt(peer_aes_key, b64_payload)
+                    decrypted = AESEncryption(peer_aes_key).decrypt(b64_payload)
                     # opcional: mostrar payload para debug
                     debug(f'payload (b64) -> {b64_payload}')
                     received(decrypted)
@@ -262,7 +250,9 @@ async def send_messages(websocket):
             # Se já temos a chave AES, criptografa a mensagem e envia com o prefixo AES_PREFIX
             if peer_aes_key:
                 try:
-                    encrypted_payload = aes_encrypt(peer_aes_key, message)  # retorna base64 string
+                    encrypted_payload = AESEncryption(peer_aes_key).encrypt(
+                        message
+                    )  # retorna base64 string
 
                     await websocket.send(f'{AES_PREFIX}{encrypted_payload}')
                 except Exception as e:

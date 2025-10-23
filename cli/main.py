@@ -14,7 +14,6 @@ from pathlib import Path
 import typer
 import websockets
 from confy_addons import AESEncryption, RSAEncryption, RSAPublicEncryption, deserialize_public_key
-from confy_addons.core.constants import RAW_PAYLOAD_LENGTH
 from confy_addons.prefixes import AES_KEY_PREFIX, AES_PREFIX, KEY_EXCHANGE_PREFIX, SYSTEM_PREFIX
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -22,6 +21,7 @@ from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.history import FileHistory
 from rich import print
 
+from cli.core.constants import RAW_PAYLOAD_LENGTH
 from cli.settings import get_settings
 from cli.utils import alert, debug, get_protocol, is_prefix, received, received_plaintext
 

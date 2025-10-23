@@ -105,7 +105,7 @@ def is_prefix(message, prefix: str) -> bool:
     return False
 
 
-def get_protocol(url: str) -> tuple[str]:
+def get_protocol(url: str) -> tuple[str, str]:
     """Determina o protocolo WebSocket apropriado (ws ou wss) com base no esquema da URL.
 
     Args:

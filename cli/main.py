@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 import websockets
 from confy_addons import AESEncryption, RSAEncryption, RSAPublicEncryption, deserialize_public_key
+from confy_addons.core.constants import RAW_PAYLOAD_LENGTH
 from confy_addons.prefixes import AES_KEY_PREFIX, AES_PREFIX, KEY_EXCHANGE_PREFIX, SYSTEM_PREFIX
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -195,16 +196,47 @@ async def receive_messages(websocket):
                     )
                     continue
 
-                b64_payload = message[len(AES_PREFIX) :]
+                # <--- INÍCIO DA LÓGICA DE VERIFICAÇÃO DE ASSINATURA (MODIFICADO) --->
                 try:
-                    decrypted = AESEncryption(peer_aes_key).decrypt(b64_payload)
-                    # opcional: mostrar payload para debug
+                    # 1. Extrai o payload bruto (contém msg + assinatura)
+                    raw_payload_with_sig = message[len(AES_PREFIX) :]
+
+                    # 2. Separa o payload da assinatura (usando '::' como separador)
+                    parts = raw_payload_with_sig.split('::')
+                    if len(parts) != RAW_PAYLOAD_LENGTH:
+                        print('[ERROR] Payload de mensagem malformado recebido. Descartando.')
+                        continue
+
+                    b64_payload = parts[0]
+                    b64_signature = parts[1]
+
+                    # 3. Descriptografa a mensagem
+                    # <--- MODIFICADO: Usa a classe AESEncryption
+                    decrypted_message = AESEncryption(peer_aes_key).decrypt(b64_payload)
+
+                    # 4. Prepara dados para verificação
+                    decrypted_bytes = decrypted_message.encode('utf-8')
+                    signature_bytes = base64.b64decode(b64_signature)
+
+                    # 5. VERIFICA a assinatura com a chave pública do peer
+                    #    Criamos uma instância RSAPublicEncryption temporária para isso
+                    # <--- MODIFICADO: Usa a classe RSAPublicEncryption
+                    RSAPublicEncryption(peer_public_key).verify(decrypted_bytes, signature_bytes)
+
+                    # 6. SUCESSO: Se a verificação não lançou exceção, a msg é válida
                     debug(f'payload (b64) -> {b64_payload}')
-                    received(decrypted)
+                    received(decrypted_message)
+
                 except Exception as e:
-                    # Descriptografia falhou -> mostra aviso e payload bruto para debug
-                    print(f'[ERROR] Falha ao descriptografar a mensagem: {e}')
-                continue
+                    # Falha na verificação! Mensagem pode ter sido adulterada ou corrompida.
+                    print(f'[CRITICAL] ASSINATURA INVÁLIDA! Mensagem descartada. ({e})')
+                    continue  # Descarta a mensagem
+
+                except Exception as e:
+                    # Erro na descriptografia, decodificação base64, etc.
+                    print(f'[ERROR] Falha ao descriptografar/verificar a mensagem: {e}')
+                    continue
+                # <--- FIM DA LÓGICA DE VERIFICAÇÃO DE ASSINATURA --->
             else:
                 # Fallback: mensagem em plaintext (sem prefixo conhecido)
                 received_plaintext(message)
@@ -247,16 +279,32 @@ async def send_messages(websocket):
                 running = False
                 break
 
-            # Se já temos a chave AES, criptografa a mensagem e envia com o prefixo AES_PREFIX
+            # Se já temos a chave AES, criptografa E ASSINA a mensagem
             if peer_aes_key:
                 try:
-                    encrypted_payload = AESEncryption(peer_aes_key).encrypt(
-                        message
-                    )  # retorna base64 string
+                    # <--- INÍCIO DA LÓGICA DE ASSINATURA (MODIFICADO) --->
 
-                    await websocket.send(f'{AES_PREFIX}{encrypted_payload}')
+                    # 1. Criptografa a mensagem com AES
+                    #    (A classe AESEncryption já retorna base64 string)
+                    # <--- MODIFICADO: Usa a classe AESEncryption
+                    encrypted_payload = AESEncryption(peer_aes_key).encrypt(message)
+
+                    # 2. Assina a mensagem ORIGINAL (em bytes) com nossa chave privada
+                    #    Usamos a instância global 'rsa'
+                    message_bytes = message.encode('utf-8')
+                    # <--- MODIFICADO: Usa o método da instância 'rsa'
+                    signature = rsa.sign(message_bytes)
+
+                    # 3. Codifica a assinatura em base64
+                    b64_signature = base64.b64encode(signature).decode('utf-8')
+
+                    # 4. Envia payload e assinatura (separados por '::')
+                    final_payload = f'{AES_PREFIX}{encrypted_payload}::{b64_signature}'
+                    await websocket.send(final_payload)
+
+                    # <--- FIM DA LÓGICA DE ASSINATURA --->
                 except Exception as e:
-                    print(f'[ERROR] Falha ao criptografar/enviar mensagem: {e}')
+                    print(f'[ERROR] Falha ao criptografar/assinar/enviar mensagem: {e}')
             else:
                 # Ainda não há AES; recomendamos não enviar texto puro para evitar confusão
                 print(

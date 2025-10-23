@@ -41,7 +41,7 @@ quote-style = 'single'
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"main.py" = ['PLW0603', 'PLR0915', 'PLR0912', 'D100']
+"main.py" = ['PLW0603', 'PLR0915', 'PLR0912', 'PLR0914', 'D100']
 "settings.py" = ['D103', 'D100', 'D101']
 "__init__.py" = ['D104']
 

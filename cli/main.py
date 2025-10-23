@@ -133,7 +133,8 @@ async def receive_messages(websocket):
 
             # Server messages (unencrypted)
             if is_prefix(message, SYSTEM_PREFIX):
-                if message == f'{SYSTEM_PREFIX} The target user is now connected.':
+                # NÃO TRADUZIR A STRING ABAIXO ENQUANTO NÃO FOR ALTERADA NO SERVIDOR
+                if message == f'{SYSTEM_PREFIX} O usuário destinatário agora está conectado.':
                     if not public_sent:
                         await websocket.send(f'{KEY_EXCHANGE_PREFIX}{rsa.base64_public_key}')
 

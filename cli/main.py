@@ -14,6 +14,7 @@ from pathlib import Path
 import typer
 import websockets
 from confy_addons import AESEncryption, RSAEncryption, RSAPublicEncryption, deserialize_public_key
+from confy_addons.core.constants import RAW_PAYLOAD_LENGTH
 from confy_addons.prefixes import AES_KEY_PREFIX, AES_PREFIX, KEY_EXCHANGE_PREFIX, SYSTEM_PREFIX
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -193,15 +194,44 @@ async def receive_messages(websocket):
                     print('[WARN] Encrypted message received, but AES key is not set. Ignoring.')
                     continue
 
-                b64_payload = message[len(AES_PREFIX) :]
+                # START OF SIGNATURE VERIFICATION
                 try:
-                    decrypted = AESEncryption(peer_aes_key).decrypt(b64_payload)
-                    # optional: show payload for debug
+                    # Extracts the raw payload (contains msg + signature)
+                    raw_payload_with_sig = message[len(AES_PREFIX) :]
+
+                    # Separates the payload from the signature (using '::' as separator)
+                    parts = raw_payload_with_sig.split('::')
+                    if len(parts) != RAW_PAYLOAD_LENGTH:
+                        print('[ERROR] Malformed message payload received. Discarding.')
+                        continue
+
+                    b64_payload = parts[0]
+                    b64_signature = parts[1]
+
+                    # Decrypt the message
+                    decrypted_message = AESEncryption(peer_aes_key).decrypt(b64_payload)
+
+                    # Prepare data for verification
+                    decrypted_bytes = decrypted_message.encode('utf-8')
+                    signature_bytes = base64.b64decode(b64_signature)
+
+                    # VERIFIES the signature with the peer's public key
+                    RSAPublicEncryption(peer_public_key).verify(decrypted_bytes, signature_bytes)
+
+                    # SUCCESS: If the check did not throw an exception, the msg is valid
                     debug(f'payload (b64) -> {b64_payload}')
-                    received(decrypted)
+                    received(decrypted_message)
+
                 except Exception as e:
-                    print(f'[ERROR] Failed to decrypt message: {e}')
-                continue
+                    # Verification failed! Message may have been tampered with or corrupted.
+                    print(f'[CRITICAL] INVALID SIGNATURE! Message discarded. ({e})')
+                    continue  # Discard the message
+
+                except Exception as e:
+                    # Error in decryption, base64 decoding, etc.
+                    print(f'[ERROR] Failed to decrypt/verify message: {e}')
+                    continue
+                # END OF SIGNATURE VERIFICATION
             else:
                 # Fallback: plaintext message (no known prefix)
                 received_plaintext(message)
@@ -244,13 +274,27 @@ async def send_messages(websocket):
                 running = False
                 break
 
-            # If we already have the AES key, encrypt the message
-            # and send it with the prefix AES_PREFIX
+            # If we already have the AES key, encrypt AND SIGN the message
             if peer_aes_key:
                 try:
+                    # START OF SIGNATURE
+
+                    # Encrypt the message with AES
                     encrypted_payload = AESEncryption(peer_aes_key).encrypt(message)
 
-                    await websocket.send(f'{AES_PREFIX}{encrypted_payload}')
+                    # Sign the ORIGINAL message (in bytes) with our private key
+                    # We use the global instance 'rsa' 
+                    message_bytes = message.encode('utf-8')
+                    signature = rsa.sign(message_bytes)
+
+                    # Encodes the signature in base64
+                    b64_signature = base64.b64encode(signature).decode('utf-8')
+
+                    # Sends payload and signature (separated by '::')
+                    final_payload = f'{AES_PREFIX}{encrypted_payload}::{b64_signature}'
+                    await websocket.send(final_payload)
+
+                    # END OF SIGNATURE
                 except Exception as e:
                     print(f'[ERROR] Failed to encrypt/send message: {e}')
             else:

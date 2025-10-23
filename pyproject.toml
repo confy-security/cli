@@ -42,7 +42,7 @@ quote-style = 'single'
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"main.py" = ['PLW0603', 'PLR0915', 'PLR0912']
+"main.py" = ['PLW0603', 'PLR0915', 'PLR0912', 'PLR0914']
 "__init__.py" = ['D104']
 
 [tool.poetry.scripts]

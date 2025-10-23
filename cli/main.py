@@ -7,9 +7,7 @@ from pathlib import Path
 import typer
 import websockets
 from confy_addons import AESEncryption, RSAEncryption, RSAPublicEncryption, deserialize_public_key
-
-# <--- NOVO: Precisamos importar a exceção de falha na verificação
-# from confy_addons.exceptions import SignatureVerificationError
+from confy_addons.core.constants import RAW_PAYLOAD_LENGTH
 from confy_addons.prefixes import AES_KEY_PREFIX, AES_PREFIX, KEY_EXCHANGE_PREFIX, SYSTEM_PREFIX
 from prompt_toolkit import PromptSession
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
@@ -205,7 +203,7 @@ async def receive_messages(websocket):
 
                     # 2. Separa o payload da assinatura (usando '::' como separador)
                     parts = raw_payload_with_sig.split('::')
-                    if len(parts) != 2:
+                    if len(parts) != RAW_PAYLOAD_LENGTH:
                         print('[ERROR] Payload de mensagem malformado recebido. Descartando.')
                         continue
 

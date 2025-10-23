@@ -283,7 +283,7 @@ async def send_messages(websocket):
                     encrypted_payload = AESEncryption(peer_aes_key).encrypt(message)
 
                     # Sign the ORIGINAL message (in bytes) with our private key
-                    # We use the global instance 'rsa' 
+                    # We use the global instance 'rsa'
                     message_bytes = message.encode('utf-8')
                     signature = rsa.sign(message_bytes)
 

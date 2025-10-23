@@ -223,11 +223,6 @@ async def receive_messages(websocket):
                     received(decrypted_message)
 
                 except Exception as e:
-                    # Verification failed! Message may have been tampered with or corrupted.
-                    print(f'[CRITICAL] INVALID SIGNATURE! Message discarded. ({e})')
-                    continue  # Discard the message
-
-                except Exception as e:
                     # Error in decryption, base64 decoding, etc.
                     print(f'[ERROR] Failed to decrypt/verify message: {e}')
                     continue

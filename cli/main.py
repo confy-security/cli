@@ -1,3 +1,10 @@
+"""Confy encrypted messaging CLI client.
+
+This module provides a command-line interface for establishing encrypted peer-to-peer
+communication using the Confy secure messaging system. It handles WebSocket connections,
+RSA key exchange, AES key encryption, and message encryption/decryption.
+"""
+
 import asyncio
 import base64
 from concurrent.futures import ThreadPoolExecutor
@@ -23,52 +30,48 @@ running = True
 settings = get_settings()
 
 rsa = RSAEncryption()
-peer_public_key = None
-peer_aes_key = None
+peer_public_key: object | None = None
+peer_aes_key: bytes | None = None
 public_sent = False
 
-# ids (atribua em client(): my_id = user_id; peer_id = recipient_id)
-my_id = None
-peer_id = None
+my_id: str | None = None
+peer_id: str | None = None
 
-# Executor de threads para rodar tarefas bloqueantes
-# Usado para rodar prompts de entrada do usuário (prompt_toolkit) em paralelo
-# ao loop assíncrono, evitando travar a comunicação WebSocket.
-# max_workers=1 garante que apenas um prompt rode por vez.
+# Thread executor for running blocking tasks
+# Used to run user input prompts (prompt_toolkit) in parallel
+# to the asynchronous loop, avoiding blocking WebSocket communication.
+# max_workers=1 ensures that only one prompt runs at a time.
 executor = ThreadPoolExecutor(max_workers=1)
 
 
-# Configurações do prompt de endereço do servidor
-# Caminho do arquivo de histórico de endereço do servidor
+# Server Address Prompt Settings
+# Server Address History File Path
 history_path = Path('~/.confy_address_history').expanduser()
 
-# Garantir que o diretório exista
 history_path.parent.mkdir(parents=True, exist_ok=True)
 
-# Garantir que o arquivo exista
 if not history_path.exists():
     history_path.touch()
 
 prompt_address_session = PromptSession(history=FileHistory(str(history_path)))
 server_address_completer = WordCompleter(['http://', 'https://'])
 
-# Configurações do prompt de mensagem
 prompt_message_session = PromptSession()
 message_completer = WordCompleter(['exit'])
 
 
 async def read_input(prompt: str) -> str:
-    """Lê a entrada do usuário no terminal de forma assíncrona.
+    """Read user input from terminal asynchronously.
 
-    Essa função executa a chamada bloqueante `input()` em um executor
-    de threads para evitar travar o loop de eventos, permitindo que
-    outras tarefas assíncronas continuem rodando enquanto o usuário digita.
+    This function executes the blocking `input()` call in a thread executor
+    to prevent blocking the event loop, allowing other async tasks to continue
+    running while the user types.
 
     Args:
-        prompt (str): Texto exibido como solicitação no terminal.
+        prompt: Display text shown as input solicitation in terminal.
 
     Returns:
-        str: Texto digitado pelo usuário.
+        str: The text typed by the user.
 
     """
     loop = asyncio.get_running_loop()
@@ -84,34 +87,33 @@ async def read_input(prompt: str) -> str:
 
 
 async def receive_messages(websocket):
-    """Gerencia o recebimento e processamento de mensagens via WebSocket.
+    """Manage receiving and processing messages via WebSocket.
 
-    Esta função é responsável por:
-    - Ler mensagens recebidas do servidor ou do peer.
-    - Processar mensagens de controle do sistema (prefixo SYSTEM_PREFIX).
-    - Executar o handshake inicial de troca de chaves públicas RSA
-      (prefixo KEY_EXCHANGE_PREFIX).
-    - Receber e descriptografar chaves AES enviadas pelo peer
-      (prefixo AES_KEY_PREFIX).
-    - Receber, descriptografar e exibir mensagens criptografadas com AES
-      (prefixo AES_PREFIX).
-    - Exibir mensagens em texto puro quando não possuem prefixo conhecido.
+    This function is responsible for:
+    - Reading messages received from the server or peer.
+    - Processing system control messages (SYSTEM_PREFIX prefix).
+    - Executing the initial RSA public key exchange handshake
+      (KEY_EXCHANGE_PREFIX prefix).
+    - Receiving and decrypting AES keys sent by peer
+      (AES_KEY_PREFIX prefix).
+    - Receiving, decrypting and displaying AES-encrypted messages
+      (AES_PREFIX prefix).
+    - Displaying plaintext messages when no known prefix is present.
 
-    Caso a conexão seja encerrada pelo servidor ou pelo peer, a função
-    encerra o loop de execução e sinaliza o encerramento do cliente.
+    If the connection is closed by server or peer, the function
+    terminates the execution loop and signals client shutdown.
 
     Args:
-        websocket (websockets.WebSocketClientProtocol):
-            Conexão WebSocket ativa a ser monitorada para recebimento de mensagens.
+        websocket: Active WebSocket connection to monitor for incoming messages.
 
     Side Effects:
-        - Pode alterar variáveis globais relacionadas à sessão
+        - May modify global session-related variables
           (`peer_public_key`, `peer_aes_key`, `public_sent`, `running`).
-        - Pode enviar mensagens de volta ao peer como parte do handshake.
+        - May send messages back to peer as part of handshake.
 
     Raises:
-        Exception: Para erros inesperados durante o processamento
-        ou descriptografia das mensagens.
+        Exception: For unexpected errors during message processing
+            or decryption.
 
     """
     global running, peer_public_key, peer_aes_key, public_sent
@@ -121,48 +123,47 @@ async def receive_messages(websocket):
                 message = await websocket.recv()
             except websockets.ConnectionClosed:
                 running = False
-                alert('Conexão fechada pelo servidor ou pelo destinatário.')
+                alert('Connection closed by server or recipient.')
                 try:
                     executor.shutdown(wait=False, cancel_futures=True)
-                    prompt_message_session.app.exit()  # encerra o prompt imediatamente
+                    prompt_message_session.app.exit()
                 except Exception:
                     pass
                 break
 
-            # Mensagens do servidor (não criptografadas)
+            # Server messages (unencrypted)
             if is_prefix(message, SYSTEM_PREFIX):
-                if message == f'{SYSTEM_PREFIX} O usuário destinatário agora está conectado.':
-                    # Envia a chave pública automaticamente apenas uma vez
+                if message == f'{SYSTEM_PREFIX} The target user is now connected.':
                     if not public_sent:
                         await websocket.send(f'{KEY_EXCHANGE_PREFIX}{rsa.base64_public_key}')
 
                         public_sent = True
-                        debug('Enviou a chave pública para o peer.')
+                        debug('Public key sent to peer.')
 
-                        # Não enviamos a mensagem do usuário agora — garantimos handshake primeiro.
+                        # We don't send the user's message now — we guarantee handshake first
                         alert(message)
                         continue
                 alert(message)
                 continue
 
-            # Recebe chave pública do peer
+            # Receives public key from peer
             elif is_prefix(message, KEY_EXCHANGE_PREFIX):
                 debug(message)
                 b64_key = message[len(KEY_EXCHANGE_PREFIX) :]
                 try:
                     peer_public_key = deserialize_public_key(b64_key)
-                    debug('Chave pública recebida do peer.')
+                    debug('Public key received from peer.')
                 except Exception as e:
-                    print(f'[ERROR] Chave pública de peer inválida: {e}')
+                    print(f'[ERROR] Invalid peer public key: {e}')
                     continue
 
                 if not public_sent:
                     try:
                         await websocket.send(f'{KEY_EXCHANGE_PREFIX}{rsa.base64_public_key}')
                         public_sent = True
-                        debug('Enviou a chave pública de volta para o peer.')
+                        debug('Public key sent back to peer.')
                     except Exception as e:
-                        print(f'[ERROR] Falha ao enviar minha chave pública: {e}')
+                        print(f'[ERROR] Failed to send public key: {e}')
                         continue
 
                 if peer_aes_key is None and public_sent:
@@ -173,101 +174,90 @@ async def receive_messages(websocket):
                         b64_encrypted_key = base64.b64encode(encrypted_key).decode()
                         await websocket.send(f'{AES_KEY_PREFIX}{b64_encrypted_key}')
                         peer_aes_key = aes.key
-                        debug('Chave AES gerada e enviada.')
+                        debug('AES key generated and sent.')
 
-            # Recebe chave AES cifrada (o outro lado foi o gerador)
+            # Receives encrypted AES key (the other side was the generator)
             elif is_prefix(message, AES_KEY_PREFIX):
                 b64_enc = message[len(AES_KEY_PREFIX) :]
                 try:
                     encrypted_key = base64.b64decode(b64_enc)
                     aes_key = rsa.decrypt(encrypted_key)
                     peer_aes_key = AESEncryption(key=aes_key).key
-                    debug('Chave AES recebida e descriptografada com sucesso.')
+                    debug('AES key received and decrypted successfully.')
                 except Exception as e:
-                    print(f'[ERROR] Falha ao descriptografar a chave AES: {e}')
+                    print(f'[ERROR] Failed to decrypt AES key: {e}')
                 continue
 
-            # Mensagem criptografada com AES (nosso prefixo AES_PREFIX)
+            # Message encrypted with AES (our prefix AES_PREFIX)
             elif is_prefix(message, AES_PREFIX):
                 if peer_aes_key is None:
-                    print(
-                        '[WARN] Mensagem criptografada recebida, '
-                        'mas a chave AES não está definida. Ignorando.'
-                    )
+                    print('[WARN] Encrypted message received, but AES key is not set. Ignoring.')
                     continue
 
-                # <--- INÍCIO DA LÓGICA DE VERIFICAÇÃO DE ASSINATURA (MODIFICADO) --->
+                # START OF SIGNATURE VERIFICATION
                 try:
-                    # 1. Extrai o payload bruto (contém msg + assinatura)
+                    # Extracts the raw payload (contains msg + signature)
                     raw_payload_with_sig = message[len(AES_PREFIX) :]
 
-                    # 2. Separa o payload da assinatura (usando '::' como separador)
+                    # Separates the payload from the signature (using '::' as separator)
                     parts = raw_payload_with_sig.split('::')
                     if len(parts) != RAW_PAYLOAD_LENGTH:
-                        print('[ERROR] Payload de mensagem malformado recebido. Descartando.')
+                        print('[ERROR] Malformed message payload received. Discarding.')
                         continue
 
                     b64_payload = parts[0]
                     b64_signature = parts[1]
 
-                    # 3. Descriptografa a mensagem
-                    # <--- MODIFICADO: Usa a classe AESEncryption
+                    # Decrypt the message
                     decrypted_message = AESEncryption(peer_aes_key).decrypt(b64_payload)
 
-                    # 4. Prepara dados para verificação
+                    # Prepare data for verification
                     decrypted_bytes = decrypted_message.encode('utf-8')
                     signature_bytes = base64.b64decode(b64_signature)
 
-                    # 5. VERIFICA a assinatura com a chave pública do peer
-                    #    Criamos uma instância RSAPublicEncryption temporária para isso
-                    # <--- MODIFICADO: Usa a classe RSAPublicEncryption
+                    # VERIFIES the signature with the peer's public key
                     RSAPublicEncryption(peer_public_key).verify(decrypted_bytes, signature_bytes)
 
-                    # 6. SUCESSO: Se a verificação não lançou exceção, a msg é válida
+                    # SUCCESS: If the check did not throw an exception, the msg is valid
                     debug(f'payload (b64) -> {b64_payload}')
                     received(decrypted_message)
 
                 except Exception as e:
-                    # Falha na verificação! Mensagem pode ter sido adulterada ou corrompida.
-                    print(f'[CRITICAL] ASSINATURA INVÁLIDA! Mensagem descartada. ({e})')
-                    continue  # Descarta a mensagem
-
-                except Exception as e:
-                    # Erro na descriptografia, decodificação base64, etc.
-                    print(f'[ERROR] Falha ao descriptografar/verificar a mensagem: {e}')
+                    # Error in decryption, base64 decoding, etc.
+                    print(f'[ERROR] Failed to decrypt/verify message: {e}')
                     continue
-                # <--- FIM DA LÓGICA DE VERIFICAÇÃO DE ASSINATURA --->
+                # END OF SIGNATURE VERIFICATION
             else:
-                # Fallback: mensagem em plaintext (sem prefixo conhecido)
+                # Fallback: plaintext message (no known prefix)
                 received_plaintext(message)
     except Exception as e:
-        print(f'\nErro ao receber mensagem: {e}')
+        print(f'\nError receiving message: {e}')
         running = False
 
 
 async def send_messages(websocket):
-    """Gerencia o envio de mensagens pelo WebSocket.
+    """Manage sending messages via WebSocket.
 
-    Esta função lê mensagens digitadas no terminal pelo usuário e as envia
-    para o peer conectado via WebSocket. Caso uma chave AES já tenha sido
-    estabelecida, a mensagem será criptografada com AES antes do envio.
-    Digitar "exit" encerra a sessão de envio.
+    This function reads messages typed in the terminal by the user and sends them
+    to the connected peer via WebSocket. If an AES key has already been
+    established, the message will be encrypted with AES before transmission.
+    Typing "exit" terminates the sending session.
 
-    Fluxo de execução:
-        1. Aguarda o input do usuário.
-        2. Se a mensagem for "exit", encerra o loop e finaliza a função.
-        3. Se existir `peer_aes_key`, criptografa a mensagem com AES e envia.
-        4. Caso contrário, exibe um aviso informando que a chave ainda não foi estabelecida.
+    Execution flow:
+        1. Awaits user input.
+        2. If message is "exit", terminates loop and finalizes function.
+        3. If `peer_aes_key` exists, encrypts message with AES and sends.
+        4. Otherwise, displays warning that key has not been established yet.
 
     Args:
-        websocket: Objeto WebSocket conectado que será usado para enviar mensagens.
+        websocket: Connected WebSocket object used to send messages.
 
     Exceptions:
-        Exception: Captura e exibe qualquer erro ocorrido durante o envio
-        ou criptografia da mensagem, encerrando o loop de execução.
+        Exception: Captures and displays any error during message sending
+            or encryption, terminating the execution loop.
 
-    Observação:
-        O estado global `running` é usado para controlar o loop de envio.
+    Note:
+        The global `running` state is used to control the send loop.
 
     """
     global running
@@ -279,67 +269,64 @@ async def send_messages(websocket):
                 running = False
                 break
 
-            # Se já temos a chave AES, criptografa E ASSINA a mensagem
+            # If we already have the AES key, encrypt AND SIGN the message
             if peer_aes_key:
                 try:
-                    # <--- INÍCIO DA LÓGICA DE ASSINATURA (MODIFICADO) --->
+                    # START OF SIGNATURE
 
-                    # 1. Criptografa a mensagem com AES
-                    #    (A classe AESEncryption já retorna base64 string)
-                    # <--- MODIFICADO: Usa a classe AESEncryption
+                    # Encrypt the message with AES
                     encrypted_payload = AESEncryption(peer_aes_key).encrypt(message)
 
-                    # 2. Assina a mensagem ORIGINAL (em bytes) com nossa chave privada
-                    #    Usamos a instância global 'rsa'
+                    # Sign the ORIGINAL message (in bytes) with our private key
+                    # We use the global instance 'rsa'
                     message_bytes = message.encode('utf-8')
-                    # <--- MODIFICADO: Usa o método da instância 'rsa'
                     signature = rsa.sign(message_bytes)
 
-                    # 3. Codifica a assinatura em base64
+                    # Encodes the signature in base64
                     b64_signature = base64.b64encode(signature).decode('utf-8')
 
-                    # 4. Envia payload e assinatura (separados por '::')
+                    # Sends payload and signature (separated by '::')
                     final_payload = f'{AES_PREFIX}{encrypted_payload}::{b64_signature}'
                     await websocket.send(final_payload)
 
-                    # <--- FIM DA LÓGICA DE ASSINATURA --->
+                    # END OF SIGNATURE
                 except Exception as e:
-                    print(f'[ERROR] Falha ao criptografar/assinar/enviar mensagem: {e}')
+                    print(f'[ERROR] Failed to encrypt/send message: {e}')
             else:
-                # Ainda não há AES; recomendamos não enviar texto puro para evitar confusão
+                # There is no AES yet; we recommend not sending plain text to avoid confusion.
                 print(
-                    '[WARN] A chave AES ainda não foi estabelecida. '
-                    'Aguarde um momento (handshake).'
+                    '[WARN] AES key has not been established yet. '
+                    'Please wait a moment (handshake in progress).'
                 )
 
         except Exception as e:
-            print(f'Erro ao enviar mensagem: {e}')
+            print(f'Error sending message: {e}')
             running = False
             break
 
 
-async def client(server_address: str, user_id: str, recipient_id: str):
-    """Abre uma conexão WebSocket com o servidor e gerencia a comunicação entre dois usuários.
+async def client(server_address: str, user_id: str, recipient_id: str) -> None:
+    """Open WebSocket connection and manage peer-to-peer communication.
 
-    A função cria e mantém três tarefas assíncronas:
-      - Envio de mensagens para o servidor.
-      - Recebimento de mensagens do servidor.
-      - Monitoramento do estado global `running` para encerrar a comunicação.
+    This function creates and maintains three async tasks:
+      - Send messages to server.
+      - Receive messages from server.
+      - Monitor global `running` state to terminate communication.
 
     Args:
-        server_address (str): Endereço do servidor WebSocket (sem protocolo).
-        user_id (str): ID do usuário cliente.
-        recipient_id (str): ID do destinatário para a comunicação.
+        server_address: Server address without protocol scheme.
+        user_id: ID of the client user.
+        recipient_id: ID of the recipient for communication.
 
     Raises:
-        websockets.ConnectionClosedOK: Quando a conexão é encerrada normalmente pelo servidor.
-        websockets.ConnectionClosedError: Quando a conexão é encerrada de forma abrupta.
-        asyncio.CancelledError: Quando as tarefas são canceladas manualmente.
-        Exception: Para outros erros durante a conexão ou execução.
+        websockets.ConnectionClosedOK: When connection is normally closed by server.
+        websockets.ConnectionClosedError: When connection closes abruptly.
+        asyncio.CancelledError: When tasks are manually cancelled.
+        Exception: For other errors during connection or execution.
 
     Side Effects:
-        - Atualiza as variáveis globais `my_id` e `peer_id`.
-        - Exibe mensagens no terminal sobre o status da conexão.
+        - Updates global variables `my_id` and `peer_id`.
+        - Displays messages on terminal about connection status.
 
     """
     protocol, host = get_protocol(server_address)
@@ -353,28 +340,28 @@ async def client(server_address: str, user_id: str, recipient_id: str):
     try:
         async with websockets.connect(uri) as websocket:
             try:
-                # Tarefas para enviar e receber mensagens
+                # Tasks for sending and receiving messages
                 send_task = asyncio.create_task(send_messages(websocket))
                 receive_task = asyncio.create_task(receive_messages(websocket))
 
-                # Monitora a variável "running" para encerrar as tarefas quando necessário
-                async def monitor_running():
+                async def monitor_running() -> None:
+                    """Monitor the running flag and cancel tasks when needed."""
                     while True:
                         if not running:
                             receive_task.cancel()
                             send_task.cancel()
                             break
-                        await asyncio.sleep(0.5)  # NÃO EXCLUA ESSA LINHA. Ass.: @henriquesebastiao
+                        await asyncio.sleep(0.5)
 
                 monitor_task = asyncio.create_task(monitor_running())
 
                 try:
-                    # Aguarda até que todas as tarefas terminem
+                    # Waits until all tasks are finished
                     await asyncio.gather(receive_task, send_task, monitor_task)
                 except asyncio.CancelledError:
                     pass
                 finally:
-                    # Cancela tarefas que não terminaram
+                    # Cancel tasks that have not finished
                     await asyncio.gather(
                         *[
                             task
@@ -384,43 +371,43 @@ async def client(server_address: str, user_id: str, recipient_id: str):
                         return_exceptions=True,
                     )
             except websockets.ConnectionClosedOK:
-                print('Conexão fechada pelo servidor.')
+                print('Connection closed by server.')
             except websockets.ConnectionClosedError:
-                print('Conexão fechada abruptamente.')
+                print('Connection closed abruptly.')
             except asyncio.CancelledError:
-                print('Tudo cancelado')
+                print('All tasks cancelled.')
                 typer.Exit(1)
             except Exception as e:
-                print(f'Erro ao receber mensagens: {e}')
+                print(f'Error receiving messages: {e}')
     except Exception:
-        print('Erro ao conectar ao servidor, verifique o endereço fornecido.')
+        print('Error connecting to server. Please verify the address provided.')
 
 
 @app.command()
-def start(user_id: str, recipient_id: str):
-    """Comando da CLI para iniciar o cliente de mensagens.
+def start(user_id: str, recipient_id: str) -> None:
+    """Start the encrypted messaging CLI client.
 
-    Ao ser executado, solicita (se necessário) o endereço do servidor e
-    inicia a conexão WebSocket com o servidor, permitindo a troca de mensagens
-    entre o usuário e o destinatário especificado.
+    When executed, this command requests the server address (if necessary)
+    and initiates the WebSocket connection with the server, enabling message
+    exchange between the user and specified recipient.
 
     Args:
-        user_id (str): ID único do usuário cliente.
-        recipient_id (str): ID único do destinatário para comunicação.
+        user_id: Unique identifier of the client user.
+        recipient_id: Unique identifier of the recipient for communication.
 
     Behavior:
-        - Se a variável de ambiente `SERVER_HOST` não estiver definida,
-          o endereço será solicitado via prompt interativo.
-        - A função é executada de forma síncrona, mas inicia o cliente assíncrono
-          usando `asyncio.run()`.
+        - If `SERVER_HOST` environment variable is not set,
+          the address will be requested via interactive prompt.
+        - The function executes synchronously but starts the async client
+          using `asyncio.run()`.
 
     Raises:
-        Exception: Propaga erros de conexão ou execução ocorridos no cliente.
+        Exception: Propagates connection or execution errors from client.
 
     """
     host_address = str(
         prompt_address_session.prompt(
-            'Endereço do servidor: ',
+            'Server address: ',
             completer=server_address_completer,
             auto_suggest=AutoSuggestFromHistory(),
         )

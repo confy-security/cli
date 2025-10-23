@@ -12,7 +12,7 @@ dependencies = [
     "typer (>=0.15.4,<0.16.0)",
     "websockets (>=15.0.1,<16.0.0)",
     "pydantic-settings (>=2.11.0,<3.0.0)",
-    "confy-addons (>=1.0.2,<2.0.0)",
+    "confy-addons (>=1.1.0,<2.0.0)",
     "prompt-toolkit (>=3.0.52,<4.0.0)",
 ]
 
@@ -25,13 +25,14 @@ ruff = "^0.11.13"
 taskipy = "^1.14.1"
 radon = "^6.0.1"
 bandit = "^1.8.6"
+mypy = "^1.18.2"
 
 [tool.ruff]
 line-length = 99
 
 [tool.ruff.lint]
 preview = true
-select = ['I', 'F', 'E', 'W', 'PL', 'PT', 'D']
+select = ['I', 'F', 'E', 'W', 'PL', 'PT', 'D', 'UP', 'PERF']
 
 [tool.ruff.format]
 preview = true
@@ -41,15 +42,15 @@ quote-style = 'single'
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"main.py" = ['PLW0603', 'PLR0915', 'PLR0912', 'PLR0914', 'D100']
-"settings.py" = ['D103', 'D100', 'D101']
+"main.py" = ['PLW0603', 'PLR0915', 'PLR0912', 'PLR0914']
 "__init__.py" = ['D104']
 
 [tool.poetry.scripts]
 confy = 'cli.main:app'
 
 [tool.taskipy.tasks]
-lint = 'ruff check .; ruff check . --diff'
-format = 'ruff format .; ruff check . --fix'
-radon = 'radon cc ./cli -a -na'
-bandit = 'bandit -r ./cli'
+lint = 'poetry run ruff check .; poetry run ruff check . --diff'
+format = 'poetry run ruff format .; poetry run ruff check . --fix'
+mypy = 'poetry run mypy -p cli'
+radon = 'poetry run radon cc ./cli -a -na'
+bandit = 'poetry run bandit -r ./cli'

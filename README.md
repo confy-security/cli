@@ -49,7 +49,7 @@ Install the CLI globally with your package manager of choice.
 pipx install confy-cli
 ```
 
-### Using Docker
+### 🐳 Using Docker
 
 Alternatively, you can use the CLI via a Docker container:
 

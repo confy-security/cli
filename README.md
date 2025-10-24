@@ -49,6 +49,27 @@ Install the CLI globally with your package manager of choice.
 pipx install confy-cli
 ```
 
+### Using Docker
+
+Alternatively, you can use the CLI via a Docker container:
+
+```bash
+docker run -it ghcr.io/confy-security/cli:latest
+```
+
+Once inside the container, you can use the CLI normally:
+
+```bash
+confy start your-user-id recipient-user-id
+```
+
+To build the Docker image locally:
+
+```bash
+docker build -t confy-cli .
+docker run -it confy-cli
+```
+
 ## 🚀 Quick Start
 
 ### Basic Usage

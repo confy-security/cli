@@ -13,6 +13,8 @@
 <div align="center">
 
 [![Test](https://github.com/confy-security/cli/actions/workflows/test.yml/badge.svg)](https://github.com/confy-security/cli/actions/workflows/test.yml)
+[![PyPI - Version](https://img.shields.io/pypi/v/confy-cli?color=blue)](https://pypi.org/project/confy-cli/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/confy-cli)](https://pypi.org/project/confy-cli/)
 [![GitHub License](https://img.shields.io/github/license/confy-security/cli?color=blue)](/LICENSE)
 [![Visitors](https://api.visitorbadge.io/api/visitors?path=confy-security%2Fcli&label=repository%20visits&countColor=%231182c3&style=flat)](https://github.com/confy-security/cli)
   

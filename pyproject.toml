@@ -1,10 +1,27 @@
 [project]
-name = "cli"
+name = "confy-cli"
 version = "0.1.0"
-description = ""
+description = "CLI client for the Confy encrypted communication system"
 authors = [
     {name = "Henrique Sebastião", email = "contato@henriquesebastiao.com"},
     {name = "Lucas Sousa", email = "lucasdedeus-15@hotmail.com"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Telecommunications Industry",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: Unix",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Chat",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Utilities",
 ]
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -16,6 +33,11 @@ dependencies = [
     "confy-addons (>=1.1.0,<2.0.0)",
     "prompt-toolkit (>=3.0.52,<4.0.0)",
 ]
+
+[tool.poetry.urls]
+"Source" = "https://github.com/confy-security/cli"
+"Bug Tracker" = "https://github.com/confy-security/cli/issues"
+"Changelog" = "https://github.com/confy-security/cli/blob/main/CHANGELOG"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

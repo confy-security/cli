@@ -29,7 +29,7 @@ Funções:
 
 from rich import print
 
-from cli.settings import get_settings
+from confy_cli.settings import get_settings
 
 settings = get_settings()
 

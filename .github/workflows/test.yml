@@ -31,10 +31,10 @@ jobs:
         run: poetry run ruff check .; poetry run ruff check . --diff
       
       - name: Run Radon
-        run: poetry run radon cc ./cli -a -na
+        run: poetry run radon cc ./confy_cli -a -na
 
       - name: Run Bandit
-        run: poetry run bandit -r ./cli
+        run: poetry run bandit -r ./confy_cli
 
       - name: Run MyPy
-        run: poetry run mypy -p cli --ignore-missing-imports
+        run: poetry run mypy -p confy_cli --ignore-missing-imports

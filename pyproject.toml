@@ -69,11 +69,11 @@ convention = "google"
 "__init__.py" = ['D104']
 
 [tool.poetry.scripts]
-confy = 'cli.main:app'
+confy = 'confy_cli.main:app'
 
 [tool.taskipy.tasks]
 lint = 'poetry run ruff check .; poetry run ruff check . --diff'
 format = 'poetry run ruff format .; poetry run ruff check . --fix'
-mypy = 'poetry run mypy -p cli --ignore-missing-imports'
-radon = 'poetry run radon cc ./cli -a -na'
-bandit = 'poetry run bandit -r ./cli'
+mypy = 'poetry run mypy -p confy_cli --ignore-missing-imports'
+radon = 'poetry run radon cc ./confy_cli -a -na'
+bandit = 'poetry run bandit -r ./confy_cli'

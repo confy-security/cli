@@ -21,9 +21,9 @@ from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.history import FileHistory
 from rich import print
 
-from cli.core.constants import RAW_PAYLOAD_LENGTH
-from cli.settings import get_settings
-from cli.utils import alert, debug, get_protocol, is_prefix, received, received_plaintext
+from confy_cli.core.constants import RAW_PAYLOAD_LENGTH
+from confy_cli.settings import get_settings
+from confy_cli.utils import alert, debug, get_protocol, is_prefix, received, received_plaintext
 
 app = typer.Typer()
 running = True

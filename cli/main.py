@@ -53,10 +53,10 @@ history_path.parent.mkdir(parents=True, exist_ok=True)
 if not history_path.exists():
     history_path.touch()
 
-prompt_address_session = PromptSession(history=FileHistory(str(history_path)))
+prompt_address_session: PromptSession = PromptSession(history=FileHistory(str(history_path)))
 server_address_completer = WordCompleter(['http://', 'https://'])
 
-prompt_message_session = PromptSession()
+prompt_message_session: PromptSession = PromptSession()
 message_completer = WordCompleter(['exit'])
 
 
@@ -128,7 +128,7 @@ async def receive_messages(websocket):
                     executor.shutdown(wait=False, cancel_futures=True)
                     prompt_message_session.app.exit()
                 except Exception:
-                    pass
+                    pass  # nosec
                 break
 
             # Server messages (unencrypted)

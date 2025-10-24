@@ -482,10 +482,10 @@ Test your changes manually:
 poetry install
 
 # Run the CLI
-poetry run confy start my-user-id recipient-id
+poetry run confy my-user-id recipient-id
 
 # Or if installed globally
-confy start my-user-id recipient-id
+confy my-user-id recipient-id
 ```
 
 ### Troubleshooting

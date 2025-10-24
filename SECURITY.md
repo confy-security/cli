@@ -169,17 +169,17 @@ We actively monitor our dependencies for security vulnerabilities:
 ```bash
 # ✅ Good: Use environment variables for sensitive data
 export CONFY_USER_ID="your-secure-id"
-confy start $CONFY_USER_ID recipient-id
+confy $CONFY_USER_ID recipient-id
 
 # ❌ Bad: Don't hardcode sensitive information
-confy start hardcoded-user-id recipient-id  # DON'T DO THIS!
+confy hardcoded-user-id recipient-id  # DON'T DO THIS!
 ```
 
 ### Server Configuration
 
 ```bash
 # ✅ Good: Use secure WSS connections
-confy start user-id recipient-id
+confy user-id recipient-id
 # Then enter: wss://secure-server.com
 
 # ❌ Bad: Use unencrypted connections

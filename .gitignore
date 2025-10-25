@@ -180,3 +180,7 @@ pyrightconfig.json
 *.pyc
 cli/__pycache__/*.pyc
 
+src/
+pkg/
+cli/
+*.zst

@@ -1,0 +1,17 @@
+pkgbase = confy-cli
+	pkgdesc = CLI client for the Confy encrypted communication system
+	pkgver = 0.1.4
+	pkgrel = 1
+	url = https://github.com/confy-security/cli
+	arch = any
+	license = custom:GNU General Public License v3 (GPLv3)
+	makedepends = python-poetry
+	makedepends = python-installer
+	makedepends = git
+	depends = python
+	provides = confy
+	conflicts = confy
+	source = git+https://github.com/confy-security/cli
+	sha256sums = SKIP
+
+pkgname = confy-cli

@@ -76,7 +76,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
     
       - name: Download CHANGELOG artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: CHANGELOG
           path: .

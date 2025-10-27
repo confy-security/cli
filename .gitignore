@@ -1,0 +1,5 @@
+cli/
+pkg/
+src/
+*.tar.gz
+*.tar.zst

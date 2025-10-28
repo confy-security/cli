@@ -1,6 +1,6 @@
 [project]
 name = "confy-cli"
-version = "0.1.7"
+version = "0.1.8"
 description = "CLI client for the Confy encrypted communication system"
 authors = [
     {name = "Henrique Sebastião", email = "contato@henriquesebastiao.com"},

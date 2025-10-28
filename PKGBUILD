@@ -3,11 +3,11 @@
 _pkgname='confy'
 pkgname='confy-cli'
 _module='confy-cli'
-_src_folder='confy_cli-0.1.4'
-pkgver='0.1.4'
-pkgrel=3
+_src_folder='confy_cli-0.1.10'
+pkgver='0.1.10'
+pkgrel=1
 pkgdesc="CLI client for the Confy encrypted communication system"
-url="https://github.com/confy-security/cli"
+url=""
 depends=(
     'python'
     'python-confy-addons'
@@ -20,8 +20,8 @@ depends=(
 makedepends=('python-poetry' 'python-installer')
 license=('custom:GNU General Public License v3 (GPLv3)')
 arch=('any')
-source=(https://files.pythonhosted.org/packages/6b/91/254cae2eba178f6af5b38e5b5d3e7e65ab0d05ceb2c78d8117c3270b1005/confy_cli-0.1.4.tar.gz)
-sha256sums=('0cc5049c1cc4f832a8ee08ed80f841b6eee17b8b78337ee43a3457ee0a015663')
+source=(https://files.pythonhosted.org/packages/47/ef/136323e423a5520fe8cf98794ff45d591da1b511a6b6c4f63309d42bcd36/confy_cli-0.1.10.tar.gz)
+sha256sums=('a281665012132a342e38dc86b00b94263a92b590147e238ad51494436dc50c88')
 
 provides=($_pkgname)
 conflicts=($_pkgname)

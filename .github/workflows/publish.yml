@@ -115,6 +115,7 @@ jobs:
           update_pkgver: false
 
   build-and-push:
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
     permissions:
       contents: read

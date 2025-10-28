@@ -5,10 +5,11 @@
 
 set -e
 
-# Colors for output
+# Cores para output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Check arguments
@@ -19,7 +20,6 @@ if [ $# -lt 1 ]; then
 fi
 
 PYPI_PACKAGE="$1"
-PKGBUILD_TEMPLATE="${2:-.PKGBUILD.template}"
 
 # Check if we are in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
@@ -27,47 +27,83 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
     exit 1
 fi
 
-# Get git version
-echo -e "${YELLOW}Obtaining Git repository version...${NC}"
+# Get version from git
+echo -e "${YELLOW}Getting Git repository version...${NC}"
 VERSION=$(git describe --tags --always 2>/dev/null | cut -d'-' -f1 | sed 's/^v//')
 
 if [ -z "$VERSION" ]; then
-    echo -e "${RED}Error: Could not obtain Git version${NC}"
+    echo -e "${RED}Error: Could not obtain version from Git${NC}"
     exit 1
 fi
 
 echo -e "${GREEN}Detected version: $VERSION${NC}"
 
 # Get PyPI information
-echo -e "${YELLOW}Obtaining PyPI information for $PYPI_PACKAGE...${NC}"
+echo -e "${YELLOW}Obtaining PyPI information for $PYPI_PACKAGE version $VERSION...${NC}"
 
 PYPI_JSON=$(curl -s "https://pypi.org/pypi/$PYPI_PACKAGE/$VERSION/json")
 
-if echo "$PYPI_JSON" | grep -q '"404"'; then
+# Check if response is valid JSON
+if ! echo "$PYPI_JSON" | jq empty 2>/dev/null; then
+    echo -e "${RED}Error: Invalid response from PyPI${NC}"
+    echo -e "${BLUE}Response: $PYPI_JSON${NC}"
+    exit 1
+fi
+
+# Check if package was found
+if echo "$PYPI_JSON" | jq -e '.info' > /dev/null 2>&1; then
+    PACKAGE_NAME=$(echo "$PYPI_JSON" | jq -r '.info.name // empty')
+    PACKAGE_URL=$(echo "$PYPI_JSON" | jq -r '.info.project_urls.Homepage // .info.project_urls.Repository // .info.home_page // empty')
+else
     echo -e "${RED}Error: Package not found on PyPI with version $VERSION${NC}"
     exit 1
 fi
 
-# Extract information
-PACKAGE_NAME=$(echo "$PYPI_JSON" | jq -r '.info.name // empty')
-PACKAGE_URL=$(echo "$PYPI_JSON" | jq -r '.info.project_urls.Homepage // .info.project_urls.Repository // empty')
-SOURCE_URL=$(echo "$PYPI_JSON" | jq -r '.urls[] | select(.filename | endswith(".tar.gz")) | .url' | head -1)
-SHA256=$(echo "$PYPI_JSON" | jq -r '.urls[] | select(.filename | endswith(".tar.gz")) | .digests.sha256' | head -1)
+# Extract file/URL information
+SOURCE_URL=""
+SHA256=""
 
-if [ -z "$SOURCE_URL" ] || [ -z "$SHA256" ]; then
-    echo -e "${RED}Error: Could not obtain source URL or SHA256${NC}"
+# Try to get from urls first
+if echo "$PYPI_JSON" | jq -e '.urls' > /dev/null 2>&1; then
+    SOURCE_URL=$(echo "$PYPI_JSON" | jq -r '.urls[] | select(.filename | endswith(".tar.gz")) | .url' | head -1)
+    SHA256=$(echo "$PYPI_JSON" | jq -r '.urls[] | select(.filename | endswith(".tar.gz")) | .digests.sha256' | head -1)
+fi
+
+# If not found, try alternatives
+if [ -z "$SOURCE_URL" ]; then
+    echo -e "${YELLOW}Trying to obtain information from alternative API...${NC}"
+    
+    # Get simple JSON (without version)
+    PYPI_JSON_ALT=$(curl -s "https://pypi.org/pypi/$PYPI_PACKAGE/json")
+    
+    if echo "$PYPI_JSON_ALT" | jq -e ".releases[\"$VERSION\"]" > /dev/null 2>&1; then
+        SOURCE_URL=$(echo "$PYPI_JSON_ALT" | jq -r ".releases[\"$VERSION\"][] | select(.filename | endswith(\".tar.gz\")) | .url" | head -1)
+        SHA256=$(echo "$PYPI_JSON_ALT" | jq -r ".releases[\"$VERSION\"][] | select(.filename | endswith(\".tar.gz\")) | .digests.sha256" | head -1)
+    fi
+fi
+
+# Final validation
+if [ -z "$SOURCE_URL" ]; then
+    echo -e "${RED}Error: Could not obtain tar.gz file URL${NC}"
+    echo -e "${BLUE}Raw PyPI data:${NC}"
+    echo "$PYPI_JSON" | jq '.' | head -50
     exit 1
 fi
 
-# Extract source folder name
+if [ -z "$SHA256" ]; then
+    echo -e "${RED}Error: Could not obtain SHA256${NC}"
+    exit 1
+fi
+
+# Extract source directory name from file
 SRC_FOLDER=$(basename "$SOURCE_URL" .tar.gz)
 
 echo -e "${GREEN}Information obtained successfully:${NC}"
-echo "  Version: $VERSION"
+echo -e "${BLUE}  Version: $VERSION"
 echo "  Package Name: $PACKAGE_NAME"
 echo "  Source URL: $SOURCE_URL"
 echo "  SHA256: $SHA256"
-echo "  Src Folder: $SRC_FOLDER"
+echo "  Src Folder: $SRC_FOLDER${NC}"
 
 # Generate PKGBUILD
 echo -e "${YELLOW}Generating PKGBUILD...${NC}"
@@ -117,5 +153,5 @@ package() {
 }
 EOF
 
-echo -e "${GREEN}PKGBUILD gerado com sucesso!${NC}"
+echo -e "${GREEN}✓ PKGBUILD gerado com sucesso!${NC}"
 echo -e "${YELLOW}Arquivo salvo como: ./PKGBUILD${NC}"

@@ -14,6 +14,7 @@
 
 [![Test](https://github.com/confy-security/cli/actions/workflows/test.yml/badge.svg)](https://github.com/confy-security/cli/actions/workflows/test.yml)
 [![PyPI - Version](https://img.shields.io/pypi/v/confy-cli?color=blue)](https://pypi.org/project/confy-cli/)
+[![AUR Version](https://img.shields.io/aur/version/confy-cli)](https://aur.archlinux.org/packages/confy-cli)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/confy-cli)](https://pypi.org/project/confy-cli/)
 [![GitHub License](https://img.shields.io/github/license/confy-security/cli?color=blue)](/LICENSE)
 [![Visitors](https://api.visitorbadge.io/api/visitors?path=confy-security%2Fcli&label=repository%20visits&countColor=%231182c3&style=flat)](https://github.com/confy-security/cli)
@@ -45,10 +46,18 @@ Made with dedication by students from Brazil 🇧🇷.
 
 ## 📦 Installation
 
-Install the CLI globally with your package manager of choice.
+Install the CLI globally with your Python package manager of choice.
 
 ```shell
 pipx install confy-cli
+```
+
+### With AUR (Arch Linux)
+
+You can install the CLI from the AUR using an AUR helper like `yay`:
+
+```bash
+yay -S confy-cli
 ```
 
 ### 🐳 Using Docker

@@ -5,10 +5,18 @@ pkgname='confy-cli'
 _module='confy-cli'
 _src_folder='confy_cli-0.1.4'
 pkgver='0.1.4'
-pkgrel=1
+pkgrel=3
 pkgdesc="CLI client for the Confy encrypted communication system"
 url="https://github.com/confy-security/cli"
-depends=('python' 'python-cryptography' 'python-typer' 'python-confy-addons')
+depends=(
+    'python'
+    'python-confy-addons'
+    'python-cryptography'
+    'python-prompt_toolkit'
+    'python-pydantic-settings'
+    'python-typer'
+    'python-websockets'
+)
 makedepends=('python-poetry' 'python-installer')
 license=('custom:GNU General Public License v3 (GPLv3)')
 arch=('any')

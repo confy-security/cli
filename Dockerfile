@@ -1,7 +1,7 @@
 FROM python:3.14-alpine
 
 LABEL maintainer="contato@henriquesebastiao.com"
-LABEL version="0.1.5"
+LABEL version="0.1.6"
 LABEL description="CLI client for the Confy encrypted communication system"
 
 RUN apk update && \

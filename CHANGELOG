@@ -2,7 +2,35 @@
 
 ## [Unreleased](https://github.com/confy-security/cli/tree/HEAD)
 
-[Full Changelog](https://github.com/confy-security/cli/compare/0.1.4...HEAD)
+[Full Changelog](https://github.com/confy-security/cli/compare/0.1.10...HEAD)
+
+**Closed issues:**
+
+- Package CLI and publish to Arch Linux AUR [\#19](https://github.com/confy-security/cli/issues/19)
+
+## [0.1.10](https://github.com/confy-security/cli/tree/0.1.10) (2025-10-28)
+
+[Full Changelog](https://github.com/confy-security/cli/compare/0.1.9...0.1.10)
+
+## [0.1.9](https://github.com/confy-security/cli/tree/0.1.9) (2025-10-28)
+
+[Full Changelog](https://github.com/confy-security/cli/compare/0.1.8...0.1.9)
+
+## [0.1.8](https://github.com/confy-security/cli/tree/0.1.8) (2025-10-28)
+
+[Full Changelog](https://github.com/confy-security/cli/compare/0.1.7...0.1.8)
+
+## [0.1.7](https://github.com/confy-security/cli/tree/0.1.7) (2025-10-28)
+
+[Full Changelog](https://github.com/confy-security/cli/compare/0.1.6...0.1.7)
+
+## [0.1.6](https://github.com/confy-security/cli/tree/0.1.6) (2025-10-28)
+
+[Full Changelog](https://github.com/confy-security/cli/compare/0.1.5...0.1.6)
+
+## [0.1.5](https://github.com/confy-security/cli/tree/0.1.5) (2025-10-28)
+
+[Full Changelog](https://github.com/confy-security/cli/compare/0.1.4...0.1.5)
 
 **Merged pull requests:**
 

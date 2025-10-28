@@ -87,6 +87,32 @@ jobs:
         with:
           prerelease: false
           body_path: ./CHANGELOG.md
+  
+  aur-publish:
+    name: Publish AUR Package
+    runs-on: ubuntu-latest
+    environment:
+      name: aur
+      url: https://aur.archlinux.org/packages/confy-cli/
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Generate PKGBUILD
+        run: |
+          bash ./scripts/generate_pkgbuild.sh confy-cli
+      - name: Publish AUR package
+        uses: ulises-jeremias/github-actions-aur-publish@v1
+        with:
+          pkgname: confy-cli
+          pkgbuild: ./PKGBUILD
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update AUR package
+          ssh_keyscan_types: rsa,dsa,ecdsa,ed25519
+          update_pkgver: false
 
   build-and-push:
     runs-on: ubuntu-latest

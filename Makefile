@@ -1,5 +1,3 @@
-VERSION = 0.1.4
-
 changelog:
 	github_changelog_generator -u confy-security -p cli -o CHANGELOG --no-verbose;
 

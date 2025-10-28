@@ -3,8 +3,8 @@
 _pkgname='confy'
 pkgname='confy-cli'
 _module='confy-cli'
-_src_folder='confy_cli-0.1.4'
-pkgver='0.1.4'
+_src_folder='confy_cli-0.1.5'
+pkgver='0.1.5'
 pkgrel=3
 pkgdesc="CLI client for the Confy encrypted communication system"
 url="https://github.com/confy-security/cli"

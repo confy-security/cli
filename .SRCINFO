@@ -1,6 +1,6 @@
 pkgbase = confy-cli
 	pkgdesc = CLI client for the Confy encrypted communication system
-	pkgver = 0.1.4
+	pkgver = 0.1.5
 	pkgrel = 3
 	url = https://github.com/confy-security/cli
 	arch = any

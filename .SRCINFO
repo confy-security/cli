@@ -1,7 +1,7 @@
 pkgbase = confy-cli
 	pkgdesc = CLI client for the Confy encrypted communication system
 	pkgver = 0.1.4
-	pkgrel = 1
+	pkgrel = 2
 	url = https://github.com/confy-security/cli
 	arch = any
 	license = custom:GNU General Public License v3 (GPLv3)

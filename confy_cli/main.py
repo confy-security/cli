@@ -12,6 +12,7 @@ from functools import partial
 from pathlib import Path
 from typing import Annotated
 
+import httpx
 import typer
 import websockets
 from confy_addons import AESEncryption, RSAEncryption, RSAPublicEncryption, deserialize_public_key
@@ -443,3 +444,31 @@ def start(
         )
     ).strip()
     asyncio.run(client(host_address, user_id, recipient_id))
+
+
+@app.command()
+def status(server_address: str) -> None:
+    """Check the status of the Confy server.
+
+    This command sends a GET request to the specified Confy server's
+    `/status` endpoint and displays the server's response.
+
+    Args:
+        server_address: The base URL of the Confy server to check.
+
+    Raises:
+        httpx.RequestError: If there is an issue connecting to the server.
+        httpx.HTTPStatusError: If the server returns a non-200 status code.
+
+    """
+    try:
+        response = httpx.get(f'{server_address}/status', timeout=5.0)
+        response.raise_for_status()
+        server_status = response.json()
+        print('Confy Server Status:')
+        print(f'CPU Frequency: {server_status.get("cpu_frequency", "N/A")["current"]} MHz')
+        print(f'CPU Percentage: {server_status.get("cpu_percentage", "N/A")}%')
+    except httpx.RequestError as e:
+        print(f'Error connecting to server: {e}')
+    except httpx.HTTPStatusError as e:
+        print(f'Server returned an error status: {e.response.status_code} - {e.response.text}')

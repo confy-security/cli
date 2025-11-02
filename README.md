@@ -71,7 +71,7 @@ docker run -it ghcr.io/confy-security/cli:latest
 Once inside the container, you can use the CLI normally:
 
 ```bash
-confy your-user-id recipient-user-id
+confy start your-user-id recipient-user-id
 ```
 
 To build the Docker image locally:
@@ -88,7 +88,7 @@ docker run -it confy-cli
 Start a secure conversation with another peer:
 
 ```bash
-confy your-user-id recipient-user-id
+confy start your-user-id recipient-user-id
 ```
 
 When prompted, enter the server address:
@@ -111,7 +111,7 @@ Once connected, you can:
 ### Example Session
 
 ```bash
-$ confy alice bob
+$ confy start alice bob
 Server address: wss://secure-server.example.com
 [SYSTEM] Waiting for recipient to connect...
 [SYSTEM] The recipient is now connected.
@@ -219,7 +219,7 @@ This allows you to quickly access previously used server addresses using arrow k
 ### Connecting to a Server
 
 ```bash
-confy alice bob
+confy start alice bob
 ```
 
 You'll be prompted to enter the server address. For the first time, you can enter:
@@ -250,7 +250,7 @@ Simply type your message and press Enter:
 Enable debug mode to see detailed information:
 
 ```bash
-DEBUG=true confy alice bob
+DEBUG=true confy start alice bob
 ```
 
 This will display:
@@ -265,7 +265,7 @@ This will display:
 Connect to a custom server:
 
 ```bash
-confy your-id recipient-id
+confy start your-id recipient-id
 Server address: wss://your-custom-server.com:8080
 ```
 

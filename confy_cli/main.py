@@ -10,6 +10,7 @@ import base64
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
+from typing import Annotated
 
 import typer
 import websockets
@@ -24,6 +25,8 @@ from rich import print
 from confy_cli.core.constants import RAW_PAYLOAD_LENGTH
 from confy_cli.settings import get_settings
 from confy_cli.utils import alert, debug, get_protocol, is_prefix, received, received_plaintext
+
+__version__ = '0.1.10'
 
 app = typer.Typer()
 running = True
@@ -58,6 +61,18 @@ server_address_completer = WordCompleter(['http://', 'https://'])
 
 prompt_message_session: PromptSession = PromptSession()
 message_completer = WordCompleter(['exit'])
+
+
+def version_callback(value: bool) -> None:
+    """Callback to display version information and exit.
+
+    Args:
+        value (bool): If True, display version info.
+
+    """
+    if value:
+        print(f'Confy CLI Client Version: {__version__}')
+        raise typer.Exit()
 
 
 async def read_input(prompt: str) -> str:
@@ -385,7 +400,20 @@ async def client(server_address: str, user_id: str, recipient_id: str) -> None:
 
 
 @app.command()
-def start(user_id: str, recipient_id: str) -> None:
+def start(
+    user_id: str,
+    recipient_id: str,
+    version: Annotated[
+        bool | None,
+        typer.Option(
+            '--version',
+            '-v',
+            callback=version_callback,
+            is_eager=True,
+            help='Show the application version and exit.',
+        ),
+    ] = None,
+) -> None:
     """Start the encrypted messaging CLI client.
 
     When executed, this command requests the server address (if necessary)
@@ -393,6 +421,7 @@ def start(user_id: str, recipient_id: str) -> None:
     exchange between the user and specified recipient.
 
     Args:
+        version: Parameter to trigger version display and exit.
         user_id: Unique identifier of the client user.
         recipient_id: Unique identifier of the recipient for communication.
 

@@ -27,7 +27,7 @@ from confy_cli.core.constants import RAW_PAYLOAD_LENGTH
 from confy_cli.settings import get_settings
 from confy_cli.utils import alert, debug, get_protocol, is_prefix, received, received_plaintext
 
-__version__ = '0.1.10'
+__version__ = '0.2.0'
 
 app = typer.Typer()
 running = True

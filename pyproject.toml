@@ -49,7 +49,7 @@ ruff = "^0.14.6"
 taskipy = "^1.14.1"
 radon = "^6.0.1"
 bandit = "^1.9.2"
-mypy = "^1.18.2"
+mypy = "^1.19.0"
 
 [tool.ruff]
 line-length = 99

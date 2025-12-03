@@ -45,7 +45,7 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.14.6"
+ruff = "^0.14.7"
 taskipy = "^1.14.1"
 radon = "^6.0.1"
 bandit = "^1.9.2"
